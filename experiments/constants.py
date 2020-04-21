@@ -1,0 +1,16 @@
+class Models:
+    RANDOMFORESTCLASSIFIER = 'RandomForestClassifier'
+    LOGISTICREGRESSION = 'LogisticRegression'
+    MULTINOMIALNB = 'MultinomialNB'
+    MLPCLASSIFIER = 'MLPClassifier'
+
+class Datasets:
+    ADULT = 'adult'
+    GERMANCREDIT = 'german_credit'
+    TWENTYNEWSGROUPS = '20_newsgroups'
+    BREASTCANCER = 'breast_cancer'
+    SYNTHETIC = 'synthetic'
+
+class Explainers:
+    LIMETABULAR = 'lime_tabular'
+    LIMETEXT = 'lime_text'

@@ -1,0 +1,30 @@
+{
+  "dataset": {
+    "name": "synthetic",
+    "params": {
+      "n_samples": 10000,
+      "n_features": 1000,
+      "n_informative": 5,
+      "n_classes": 2
+    }
+  },
+  "model": {
+    "name": "RandomForestClassifier",
+    "params": {
+      "n_estimators": 100
+    }
+  },
+  "explanations": {
+    "type": "lime_tabular",
+    "n_explanations": 1000,
+    "model_params": {},
+    "inference_params": {
+      "num_samples": 1000
+    }
+  },
+  "experiments": {
+    "n_runs": 5,
+    "type": "n_features",
+    "values": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+  }
+}

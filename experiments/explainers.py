@@ -3,9 +3,12 @@ from lime.lime_text import LimeTextExplainer
 
 from experiments.constants import Explainers
 
+from faster_lime.explainers.numpy_explainer import NumpyExplainer
+
 explainers = {
     Explainers.LIMETABULAR: LimeTabularExplainer,
-    Explainers.LIMETEXT: LimeTextExplainer
+    Explainers.LIMETEXT: LimeTextExplainer,
+    Explainers.NUMPY: NumpyExplainer
 }
 
 def get_explainer(name, params):

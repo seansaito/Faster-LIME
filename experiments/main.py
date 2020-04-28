@@ -127,13 +127,17 @@ def create_save_path(save_dir: str, config_name: str, timestamp: str) -> str:
     return os.path.join(save_dir, t)
 
 
-def main(config_dir: str, save_dir: str):
+def main(config_dir: str, save_dir: str, configs: list = None):
     """
     Args:
         config_dir (str): Directory to config files
         save_dir (str): Directory to save results
+        configs (list): Path to individual config files
     """
-    list_config_files = glob.glob(os.path.join(config_dir, '*.json'), recursive=False)
+    if configs:
+        list_config_files = configs
+    else:
+        list_config_files = glob.glob(os.path.join(config_dir, '*.json'), recursive=False)
     logger.info('{} configs found: {}'.format(
         len(list_config_files), list_config_files))
     for path in list_config_files:
@@ -194,6 +198,8 @@ if __name__ == '__main__':
                         help='Place to log output')
     parser.add_argument('--save_dir', required=False, type=str, default='results',
                         help='Place to save results')
+    parser.add_argument('--configs', required=False, type=str, nargs='+',
+                        help='Path to individual config files')
 
     # Parse args
     args = parser.parse_args()
@@ -201,6 +207,7 @@ if __name__ == '__main__':
     config_dir = args['config_dir']
     log_out = args['log_out']
     save_dir = args['save_dir']
+    configs = list(args['configs'])
     os.makedirs(save_dir, exist_ok=True)
 
     # Set up logging
@@ -213,4 +220,4 @@ if __name__ == '__main__':
     pp = pprint.PrettyPrinter()
 
     # Run main
-    main(config_dir, save_dir)
+    main(config_dir, save_dir, configs)

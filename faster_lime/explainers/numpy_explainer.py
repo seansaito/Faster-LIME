@@ -26,10 +26,14 @@ class NumpyExplainer:
         return (np.array([np.digitize(a, bins)
                           for (a, bins) in zip(X.T, all_bins)]).T, all_bins)
 
-    def explain_instance(self, data_row, predict_fn, num_samples=5000, num_features=10, **kwargs):
+    def explain_instance(self, data_row, predict_fn, num_samples=5000, num_features=10,
+                         kernel_width=None, **kwargs):
         # Scale the data
         data_row = data_row.reshape((1, -1))
         data_scaled = self.sc.transform(data_row)
+
+        if kernel_width is None:
+            kernel_width = np.sqrt(data_row.shape[1]) * 0.75
 
         # Create synthetic neighborhood
         X_synthetic = np.tile(data_scaled, (num_samples, 1))
@@ -45,7 +49,7 @@ class NumpyExplainer:
         # Solve
         distances = cdist(X_synthetic[:1], X_synthetic)
         distances = distances.reshape(-1, 1)
-        weights = self.kernel_fn(distances, kernel_width=data_row.shape[1]).ravel()
+        weights = self.kernel_fn(distances, kernel_width=kernel_width).ravel()
         solver = Ridge(alpha=1, fit_intercept=True)
         solver.fit(X_synthetic_onehot, model_pred[:, 0], sample_weight=weights)
 

@@ -140,6 +140,9 @@ def main(config_dir: str, save_dir: str, configs: list = None):
         list_config_files = glob.glob(os.path.join(config_dir, '*.json'), recursive=False)
     logger.info('{} configs found: {}'.format(
         len(list_config_files), list_config_files))
+
+    list_results = []
+
     for path in list_config_files:
         logger.info('============================================================')
         try:
@@ -185,8 +188,15 @@ def main(config_dir: str, save_dir: str, configs: list = None):
                      exp_type=exp_type,
                      path=save_path,
                      timestamp=str_timestamp)
+
+            res = (config_f, exp_type, list(zip(values, list(map(np.mean, list_runtimes)))))
+            list_results.append(res)
+
         except Exception as e:
             logger.error(pp.pformat(e))
+
+    for res in list_results:
+        pprint.pprint(res)
 
 
 if __name__ == '__main__':
@@ -207,7 +217,7 @@ if __name__ == '__main__':
     config_dir = args['config_dir']
     log_out = args['log_out']
     save_dir = args['save_dir']
-    configs = list(args['configs'])
+    configs = args['configs']
     os.makedirs(save_dir, exist_ok=True)
 
     # Set up logging

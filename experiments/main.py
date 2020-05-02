@@ -157,6 +157,7 @@ def main(config_dir: str, save_dir: str, configs: list = None):
             logger.info('Experiment type is {} with values {}'.format(exp_type, values))
             list_runtimes = []
             for val in values:
+                logger.info('==================================')
                 logger.info('    {}: {}'.format(exp_type, val))
                 config_copy = copy.deepcopy(config)
                 if exp_type == 'n_features':

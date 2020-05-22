@@ -15,3 +15,4 @@ class Explainers:
     LIMETABULAR = 'lime_tabular'
     LIMETEXT = 'lime_text'
     NUMPY = 'numpy'
+    NUMPYENSEMBLE = 'numpy_ensemble'

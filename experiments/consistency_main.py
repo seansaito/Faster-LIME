@@ -53,7 +53,7 @@ def measure_consistency(model, X, explainer, inference_params, explainer_type,
                 inference_params['labels'] = (output,)
                 explanations = explainer.explain_instance(**inference_params)
                 exp_buffer.add(frozenset(list(map(lambda x: x[0], explanations.as_list(output)))))
-            elif explainer_type == Explainers.NUMPY:
+            elif explainer_type in [Explainers.NUMPY, Explainers.NUMPYENSEMBLE]:
                 inference_params['label'] = output
                 explanations = explainer.explain_instance(**inference_params)
                 exp_buffer.add(frozenset(list(map(lambda x: x[0], explanations))))
@@ -218,7 +218,6 @@ def main(config_dir: str, save_dir: str, configs: list = None):
 
 
 if __name__ == '__main__':
-    np.random.seed(123456)
     parser = argparse.ArgumentParser(allow_abbrev=False)
     parser.add_argument('--config_dir', required=True, type=str,
                         help='Directory with config files')

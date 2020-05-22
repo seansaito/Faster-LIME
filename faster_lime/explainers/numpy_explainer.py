@@ -102,12 +102,15 @@ class NumpyExplainer:
 
         if self.categorical_features:
             # Sample from training distribution for each categorical feature
+            data_cat = data_row[:,self.categorical_feature_idxes]
             list_buf = []
             for feature in self.categorical_features:
                 list_buf.append(np.random.choice(a=len(self.dict_categorical_hist[feature]),
                                                  size=(1, num_samples),
                                                  p=self.dict_categorical_hist[feature]))
             data_cat_original = data_cat_disc = np.concatenate(list_buf).T
+            data_cat_original[0] = data_cat.ravel()
+            data_cat_disc[0] = data_cat.ravel()
             list_disc.append(data_cat_disc)
             list_orig.append(data_cat_original)
 

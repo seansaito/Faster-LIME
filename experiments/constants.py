@@ -16,3 +16,4 @@ class Explainers:
     LIMETEXT = 'lime_text'
     NUMPY = 'numpy'
     NUMPYENSEMBLE = 'numpy_ensemble'
+    NUMPYTEXT = 'numpy_text'

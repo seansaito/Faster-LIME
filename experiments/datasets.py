@@ -13,13 +13,20 @@ datasets = {
 
 def get_dataset(name, params):
     if name in datasets:
-        if name in [Datasets.BREASTCANCER, Datasets.TWENTYNEWSGROUPS, Datasets.GERMANCREDIT]:
+        if name in [Datasets.BREASTCANCER, Datasets.GERMANCREDIT]:
             data = datasets[name]()
         elif name == Datasets.SYNTHETIC:
             X, y = datasets[name](**params)
             data = {
                 'data': X,
                 'target': y
+            }
+        elif name == Datasets.TWENTYNEWSGROUPS:
+            raw_train = scikit_datasets.fetch_20newsgroups(subset='train', **params)
+            raw_test = scikit_datasets.fetch_20newsgroups(subset='test', **params)
+            data = {
+                'raw_train': raw_train,
+                'raw_test': raw_test
             }
         else:
             data = {}

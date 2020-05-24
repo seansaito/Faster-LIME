@@ -17,9 +17,10 @@
     },
     "inference_params": {
       "num_samples": 1000,
-      "num_estimators": 10,
-      "num_workers": 10
-    }
+      "num_estimators": 10
+    },
+    "data_row_param_name": "data_row",
+    "predict_fn_param_name": "predict_fn"
   },
   "experiments": {
     "n_runs": 5,

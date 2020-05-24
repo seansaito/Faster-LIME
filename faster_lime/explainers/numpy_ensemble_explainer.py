@@ -91,7 +91,7 @@ class NumpyEnsembleExplainer:
                           for (a, bins) in zip(X.T, all_bins)]).T, all_bins)
 
     def explain_instance(self, data_row, predict_fn,
-                         num_estimators=10,
+                         num_estimators=1,
                          label=0,
                          num_samples=5000,
                          num_features=10,

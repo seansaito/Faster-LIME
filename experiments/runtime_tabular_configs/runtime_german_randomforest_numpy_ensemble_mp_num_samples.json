@@ -10,15 +10,18 @@
     }
   },
   "explanations": {
-    "type": "lime_tabular",
+    "type": "numpy_ensemble",
     "n_explanations": 100,
     "model_params": {
-      "categorical_features": [1, 2, 3, 4, 5, 8],
-      "categorical_names": ["Sex", "Job", "Housing", "Saving accounts", "Checking account", "Purpose"]
+      "categorical_feature_idxes": [1, 2, 3, 4, 5, 8]
     },
     "inference_params": {
-      "num_samples": 1000
-    }
+      "num_samples": 1000,
+      "num_estimators": 10,
+      "num_workers": 10
+    },
+    "data_row_param_name": "data_row",
+    "predict_fn_param_name": "predict_fn"
   },
   "experiments": {
     "n_runs": 5,

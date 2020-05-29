@@ -1,0 +1,31 @@
+{
+  "dataset": {
+    "name": "german_credit",
+    "params": {}
+  },
+  "model": {
+    "name": "RandomForestClassifier",
+    "params": {
+      "n_estimators": 100
+    }
+  },
+  "explanations": {
+    "type": "lime_tabular",
+    "n_explanations": 100,
+    "model_params": {
+      "categorical_features": [1, 2, 3, 4, 5, 8],
+      "categorical_names": ["Sex", "Job", "Housing", "Saving accounts", "Checking account", "Purpose"]
+    },
+    "inference_params": {
+      "num_samples": 1000,
+      "num_features": 5
+    },
+    "data_row_param_name": "data_row",
+    "predict_fn_param_name": "predict_fn"
+  },
+  "experiments": {
+    "n_runs": 5,
+    "type": "num_samples",
+    "values": [1000, 2000, 3000, 4000, 5000]
+  }
+}

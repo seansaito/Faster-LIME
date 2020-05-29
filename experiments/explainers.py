@@ -7,12 +7,15 @@ from faster_lime.explainers.numpy_explainer import NumpyExplainer
 from faster_lime.explainers.numpy_ensemble_explainer import NumpyEnsembleExplainer
 from faster_lime.explainers.numpy_text_explainer import NumpyTextExplainer
 
+from cython_explainer import CythonExplainer
+
 explainers = {
     Explainers.LIMETABULAR: LimeTabularExplainer,
     Explainers.LIMETEXT: LimeTextExplainer,
     Explainers.NUMPY: NumpyExplainer,
     Explainers.NUMPYENSEMBLE: NumpyEnsembleExplainer,
-    Explainers.NUMPYTEXT: NumpyTextExplainer
+    Explainers.NUMPYTEXT: NumpyTextExplainer,
+    Explainers.CYTHONTABULAR: CythonExplainer
 }
 
 def get_explainer(name, params):

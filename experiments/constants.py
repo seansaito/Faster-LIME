@@ -17,3 +17,4 @@ class Explainers:
     NUMPY = 'numpy'
     NUMPYENSEMBLE = 'numpy_ensemble'
     NUMPYTEXT = 'numpy_text'
+    CYTHONTABULAR = 'cython_tabular'

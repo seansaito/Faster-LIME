@@ -25,11 +25,10 @@ class NumpyEnsembleExplainer:
                  qs=[25, 50, 75], **kwargs):
         """
         Args:
-            training_data:
-            feature_names:
-            categorical_feature_idxes:
-            qs:
-            **kwargs:
+            training_data (np.ndarray): Training data to measure training data statistics
+            feature_names (list): List of feature names
+            categorical_feature_idxes (list): List of idxes of features that are categorical
+            qs (list): Discretization bins
 
         Assumptions:
             * Data only contains categorical and/or numerical data
@@ -50,7 +49,8 @@ class NumpyEnsembleExplainer:
         if self.categorical_feature_idxes:
             self.categorical_features = [self.feature_names[i] for i in
                                          self.categorical_feature_idxes]
-            self.numerical_features = list(set(self.feature_names) - set(self.categorical_features))
+            self.numerical_features = [f for f in self.feature_names if
+                                       f not in self.categorical_features]
             self.numerical_feature_idxes = [idx for idx in range(self.num_features) if
                                             idx not in self.categorical_feature_idxes]
         else:
@@ -59,6 +59,8 @@ class NumpyEnsembleExplainer:
             self.numerical_feature_idxes = list(range(self.num_features))
 
         # Some book-keeping: keep track of the original indices of each feature
+        self.dict_num_feature_to_idx = {feature: idx for (idx, feature) in
+                                        enumerate(self.numerical_features)}
         self.dict_feature_to_idx = {feature: idx for (idx, feature) in
                                     enumerate(self.feature_names)}
         self.list_reorder = [self.dict_feature_to_idx[feature] for feature in
@@ -80,6 +82,11 @@ class NumpyEnsembleExplainer:
                 feature: np.bincount(training_data_cat[:, idx]) / self.training_data.shape[0] for
                 (idx, feature) in enumerate(self.categorical_features)
             }
+
+        # Another mapping from feature to type
+        self.dict_feature_to_type = {
+            feature: 'categorical' if feature in self.categorical_features else 'numerical' for
+            feature in self.feature_names}
 
     def kernel_fn(self, distances, kernel_width):
         return np.sqrt(np.exp(-(distances ** 2) / kernel_width ** 2))
@@ -185,6 +192,28 @@ class NumpyEnsembleExplainer:
         importances = np.mean(np.stack(importances), axis=0)
         explanations = sorted(list(zip(self.feature_names, importances)),
                               key=lambda x: x[1], reverse=True)[:num_features]
+
+        # Add '<', '>', '=' etc. to the explanations
+        def map_explanations(tup):
+            feature, score = tup
+            feature_idx = self.dict_feature_to_idx[feature]
+            feature_type = self.dict_feature_to_type[feature]
+            if feature_type == 'categorical':
+                exp = '{} = {}'.format(feature, data_row[0][feature_idx])
+            else:
+                num_bin = data_synthetic_disc[0][feature_idx]
+                bins = self.all_bins_num[self.dict_num_feature_to_idx[feature]]
+                if num_bin == 0:
+                    exp = '{} < {}'.format(feature, bins[0])
+                elif num_bin >= len(bins) - 1:
+                    exp = '{} > {}'.format(feature, bins[-1])
+                else:
+                    exp = '{} <= {} < {}'.format(bins[num_bin - 1], feature, bins[num_bin])
+
+            return exp, score
+
+        explanations = list(map(map_explanations, explanations))
+
         return explanations
 
 

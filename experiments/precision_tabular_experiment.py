@@ -13,11 +13,11 @@ from typing import List
 import numpy as np
 from sklearn.model_selection import train_test_split
 
+from experiments.constants import Explainers
 from experiments.datasets import get_dataset
 from experiments.experiments_common import main, measure_precision, Binarizer
 from experiments.explainers import get_explainer
 from experiments.models import get_model
-from experiments.constants import Explainers
 
 
 def run_test(config: dict) -> List[float]:

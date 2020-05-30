@@ -61,7 +61,7 @@ def main(config_dir: str, save_dir: str, metric: str, run_test_fn: Callable, con
             elif exp_type == 'n_explanations':
                 config_copy['explanations']['n_explanations'] = val
             elif exp_type == 'num_exp_per_sample':
-                config['explanations']['num_exp_per_sample'] = val
+                config_copy['explanations']['num_exp_per_sample'] = val
             elif exp_type == 'num_samples':
                 config_copy['explanations']['inference_params']['num_samples'] = val
             else:

@@ -6,13 +6,15 @@ from experiments.utils.constants import Explainers
 from faster_lime.explainers.numpy_explainer import NumpyExplainer
 from faster_lime.explainers.numpy_ensemble_explainer import NumpyEnsembleExplainer
 from faster_lime.explainers.numpy_text_explainer import NumpyTextExplainer
+from faster_lime.explainers.numpy_robust_tabular_explainer import NumpyRobustTabularExplainer
 
 explainers = {
     Explainers.LIMETABULAR: LimeTabularExplainer,
     Explainers.LIMETEXT: LimeTextExplainer,
     Explainers.NUMPY: NumpyExplainer,
     Explainers.NUMPYENSEMBLE: NumpyEnsembleExplainer,
-    Explainers.NUMPYTEXT: NumpyTextExplainer
+    Explainers.NUMPYTEXT: NumpyTextExplainer,
+    Explainers.NUMPYROBUSTTABULAR: NumpyRobustTabularExplainer
 }
 
 def get_explainer(name, params):

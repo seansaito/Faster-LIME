@@ -13,10 +13,10 @@ from typing import List
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-from experiments.datasets import get_dataset
+from experiments.utils.datasets import get_dataset
 from experiments.experiments_common import main, measure_time
-from experiments.explainers import get_explainer
-from experiments.models import get_model
+from experiments.utils.explainers import get_explainer
+from experiments.utils.models import get_model
 
 
 def run_test(config: dict) -> List[float]:

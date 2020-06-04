@@ -15,7 +15,7 @@ def get_and_preprocess_compas_data():
     POSITIVE_OUTCOME = 1
     NEGATIVE_OUTCOME = 0
 
-    path = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)),
+    path = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
                                         "data/compas-scores-two-years.csv"))
     compas_df = pd.read_csv(path, index_col=0)
     compas_df = compas_df.loc[(compas_df['days_b_screening_arrest'] <= 30) &
@@ -54,7 +54,8 @@ def get_and_preprocess_compas_data():
 
 def load_german_credit_dataset():
     path = os.path.abspath(
-        os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data/german_credit_data.csv'))
+        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                     'data/german_credit_data.csv'))
     df = pd.read_csv(path)
     df = df.fillna('None')
     target_col = 'Risk'

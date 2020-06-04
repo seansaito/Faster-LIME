@@ -12,10 +12,10 @@ from typing import List
 
 from sklearn.model_selection import train_test_split
 
-from experiments.datasets import get_dataset
+from experiments.utils.datasets import get_dataset
 from experiments.experiments_common import main, measure_consistency
-from experiments.explainers import get_explainer
-from experiments.models import get_model
+from experiments.utils.explainers import get_explainer
+from experiments.utils.models import get_model
 
 
 def run_test(config: dict) -> List[float]:

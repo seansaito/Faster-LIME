@@ -16,7 +16,7 @@ from sklearn.externals import joblib
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 
-from experiments.constants import Explainers
+from experiments.utils.constants import Explainers
 
 logger = logging.getLogger(__name__)
 pp = pprint.PrettyPrinter()

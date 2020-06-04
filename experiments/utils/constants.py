@@ -10,6 +10,7 @@ class Datasets:
     TWENTYNEWSGROUPS = '20_newsgroups'
     BREASTCANCER = 'breast_cancer'
     SYNTHETIC = 'synthetic'
+    COMPAS = 'compas'
 
 class Explainers:
     LIMETABULAR = 'lime_tabular'

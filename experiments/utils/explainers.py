@@ -1,7 +1,7 @@
 from lime.lime_tabular import LimeTabularExplainer
 from lime.lime_text import LimeTextExplainer
 
-from experiments.constants import Explainers
+from experiments.utils.constants import Explainers
 
 from faster_lime.explainers.numpy_explainer import NumpyExplainer
 from faster_lime.explainers.numpy_ensemble_explainer import NumpyEnsembleExplainer

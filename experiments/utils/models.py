@@ -3,7 +3,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.neural_network import MLPClassifier
 
-from experiments.constants import Models
+from experiments.utils.constants import Models
 
 models = {
     Models.RANDOMFORESTCLASSIFIER: RandomForestClassifier,

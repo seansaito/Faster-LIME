@@ -10,7 +10,7 @@
     }
   },
   "explanations": {
-    "type": "numpy",
+    "type": "numpy_tabular",
     "n_explanations": 100,
     "num_exp_per_sample": 2,
     "model_params": {

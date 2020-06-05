@@ -10,7 +10,7 @@
     }
   },
   "explanations": {
-    "type": "numpy",
+    "type": "numpy_tabular",
     "n_explanations": 100,
     "model_params": {
       "categorical_feature_idxes": [1, 2, 3, 4, 5, 8]

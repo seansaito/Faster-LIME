@@ -15,7 +15,7 @@
     }
   },
   "explanations": {
-    "type": "numpy",
+    "type": "numpy_tabular",
     "n_explanations": 1000,
     "model_params": {},
     "inference_params": {

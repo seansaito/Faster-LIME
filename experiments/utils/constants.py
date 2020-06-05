@@ -15,7 +15,7 @@ class Datasets:
 class Explainers:
     LIMETABULAR = 'lime_tabular'
     LIMETEXT = 'lime_text'
-    NUMPY = 'numpy'
+    NUMPYTABULAR = 'numpy_tabular'
     NUMPYENSEMBLE = 'numpy_ensemble'
     NUMPYTEXT = 'numpy_text'
     NUMPYROBUSTTABULAR= 'numpy_robust_tabular'

@@ -73,8 +73,7 @@ def main(config_dir: str, save_dir: str, metric: str, run_test_fn: Callable, con
 
         # Save results
         now = datetime.now()
-        timestamp = str(int(datetime.timestamp(now)))
-        str_timestamp = str(now)
+        timestamp = datetime.strftime(now, '%Y%m%d%H%M%S')
         save_path = create_save_path(
             save_dir=save_dir,
             config_name=config_f.split('.')[0],
@@ -87,7 +86,7 @@ def main(config_dir: str, save_dir: str, metric: str, run_test_fn: Callable, con
                  values=values,
                  exp_type=exp_type,
                  path=save_path,
-                 timestamp=str_timestamp)
+                 timestamp=timestamp)
 
         res = (config_f, exp_type, list(zip(values, list(map(np.mean, list_metrics)))))
         list_results.append(res)
@@ -100,7 +99,7 @@ def create_save_path(save_dir: str, config_name: str, timestamp: str) -> str:
     """
     Create the path to save results
     """
-    t = '{config_name}_{timestamp}.pkl'.format(
+    t = '{config_name}-{timestamp}.pkl'.format(
         config_name=config_name,
         timestamp=timestamp
     )
@@ -176,7 +175,7 @@ def measure_consistency(model, X, explainer, inference_params, explainer_type,
                 inference_params['labels'] = (output,)
                 explanations = explainer.explain_instance(**inference_params)
                 exp_buffer.add(frozenset(list(map(lambda x: x[0], explanations.as_list(output)))))
-            elif explainer_type in [Explainers.NUMPY, Explainers.NUMPYENSEMBLE]:
+            elif explainer_type in [Explainers.NUMPYTABULAR, Explainers.NUMPYENSEMBLE]:
                 inference_params['label'] = output
                 explanations = explainer.explain_instance(**inference_params)
                 exp_buffer.add(frozenset(list(map(lambda x: x[0], explanations))))
@@ -235,7 +234,7 @@ def measure_precision(model, X, binarizer, feature_names, explainer, inference_p
         explanations = explainer.explain_instance(**inference_params)
         if explainer_type == Explainers.LIMETABULAR:
             features_exp = list(map(lambda x: x[0], explanations.as_list(1)))
-        elif explainer_type in [Explainers.NUMPY, Explainers.NUMPYENSEMBLE]:
+        elif explainer_type in [Explainers.NUMPYTABULAR, Explainers.NUMPYENSEMBLE]:
             features_exp = list(map(lambda x: x[0], explanations))
         else:
             features_exp = []
@@ -299,7 +298,7 @@ def measure_coverage(model, X, binarizer, feature_names, explainer, inference_pa
         explanations = explainer.explain_instance(**inference_params)
         if explainer_type == Explainers.LIMETABULAR:
             features_exp = list(map(lambda x: x[0], explanations.as_list(1)))
-        elif explainer_type in [Explainers.NUMPY, Explainers.NUMPYENSEMBLE]:
+        elif explainer_type in [Explainers.NUMPYTABULAR, Explainers.NUMPYENSEMBLE]:
             features_exp = list(map(lambda x: x[0], explanations))
         else:
             features_exp = []

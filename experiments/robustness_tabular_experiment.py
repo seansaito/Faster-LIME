@@ -236,10 +236,10 @@ def main(dataset, num_runs, top_features, params={}):
 if __name__ == '__main__':
     np.random.seed(123456)
     parser = argparse.ArgumentParser(allow_abbrev=False)
-    parser.add_argument('--log_out', required=False, type=str, default='robustness_out.log',
+    parser.add_argument('--log_out', required=False, type=str, default='logs/robustness_tabular_out.log',
                         help='Place to log output')
     parser.add_argument('--save_dir', required=False, type=str,
-                        default='experiments/robustness_results',
+                        default='experiments/robustness_tabular_results',
                         help='Place to save results')
     parser.add_argument('--dataset', required=False, type=str, default=Datasets.COMPAS,
                         help='Dataset to measure robustness with')

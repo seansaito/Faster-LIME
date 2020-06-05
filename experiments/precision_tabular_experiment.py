@@ -64,7 +64,7 @@ def run_test(config: dict) -> List[float]:
 
         if config['explanations']['type'] == Explainers.LIMETABULAR:
             categorical_feature_idxes = explainer.categorical_features
-        elif config['explanations']['type'] in [Explainers.NUMPYENSEMBLE, Explainers.NUMPY]:
+        elif config['explanations']['type'] in [Explainers.NUMPYENSEMBLE, Explainers.NUMPYTABULAR]:
             categorical_feature_idxes = explainer.categorical_feature_idxes
         else:
             categorical_feature_idxes = []

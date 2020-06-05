@@ -4,7 +4,7 @@ from sklearn.linear_model import Ridge
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
 
-class NumpyExplainer:
+class NumpyTabularExplainer:
 
     def __init__(self, training_data, feature_names=None,
                  categorical_feature_idxes=None,
@@ -189,7 +189,7 @@ if __name__ == '__main__':
     clf.fit(X_train, y_train)
     print(clf.score(X_test, y_test))
 
-    explainer = NumpyExplainer(
+    explainer = NumpyTabularExplainer(
         training_data=X_train,
         feature_names=data['feature_names']
     )

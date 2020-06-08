@@ -123,7 +123,7 @@ def save_run(config, metric, metric_values, values, exp_type, path, timestamp):
 def measure_time(predict_fn, X, explainer, inference_params, data_row_param_name,
                  predict_fn_param_name) -> float:
     """
-    Measures time to produce explanations for X_test with black-box model
+    Measures average time to generate explanations for one sample
 
     Args:
         model: Trained model
@@ -134,7 +134,7 @@ def measure_time(predict_fn, X, explainer, inference_params, data_row_param_name
         predict_fn_param_name: Name of parameter for prediction function passed to explainer object
 
     Returns:
-        (float) Average time to generate explanations for X
+        (float) Average time to generate one explanation
     """
     start = time.perf_counter()
     inference_params[predict_fn_param_name] = predict_fn
@@ -142,8 +142,9 @@ def measure_time(predict_fn, X, explainer, inference_params, data_row_param_name
         inference_params[data_row_param_name] = X[i]
         _ = explainer.explain_instance(**inference_params)
     end = time.perf_counter()
-    return end - start
-
+    total_time =  end - start
+    avg_time = total_time / len(X)
+    return avg_time
 
 def measure_consistency(model, X, explainer, inference_params, explainer_type,
                         num_exp_per_sample, data_row_param_name,

@@ -1,20 +1,22 @@
 import sklearn.datasets as scikit_datasets
 
 from experiments.utils.constants import Datasets
-from experiments.utils.dataset_utils import load_german_credit_dataset, get_and_preprocess_compas_data
+from experiments.utils.dataset_utils import load_german_credit_dataset, \
+    get_and_preprocess_compas_data, get_and_preprocess_adult_data
 
 datasets = {
     Datasets.BREASTCANCER: scikit_datasets.load_breast_cancer,
     Datasets.TWENTYNEWSGROUPS: scikit_datasets.fetch_20newsgroups,
     Datasets.SYNTHETIC: scikit_datasets.make_classification,
     Datasets.GERMANCREDIT: load_german_credit_dataset,
-    Datasets.COMPAS: get_and_preprocess_compas_data
+    Datasets.COMPAS: get_and_preprocess_compas_data,
+    Datasets.ADULT: get_and_preprocess_adult_data
 }
 
 
 def get_dataset(name, params):
     if name in datasets:
-        if name in [Datasets.BREASTCANCER, Datasets.GERMANCREDIT, Datasets.COMPAS]:
+        if name in [Datasets.BREASTCANCER, Datasets.GERMANCREDIT, Datasets.COMPAS, Datasets.ADULT]:
             data = datasets[name]()
         elif name == Datasets.SYNTHETIC:
             X, y = datasets[name](**params)

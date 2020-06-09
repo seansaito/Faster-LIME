@@ -1,10 +1,43 @@
 import os
 
+import numpy as np
 import pandas as pd
+from ctgan import load_demo
 from sklearn.preprocessing import LabelEncoder
 
-import numpy as np
 
+def get_and_preprocess_adult_data():
+    df_data = load_demo()
+    feature_names = list(df_data.columns)
+    target_col = 'income'
+    feature_names.remove(target_col)
+
+    categorical_features = [
+        'workclass',
+        'education',
+        'marital-status',
+        'occupation',
+        'relationship',
+        'race',
+        'sex',
+        'native-country',
+    ]
+
+    # Convert categorical features to ordinal
+    dict_le = {}
+    for cat_col in categorical_features + [target_col]:
+        le = LabelEncoder()
+        df_data[cat_col] = le.fit_transform(df_data[cat_col])
+        dict_le[cat_col] = le
+
+    X, y = df_data[feature_names], df_data[target_col].values
+
+    return {
+        'data': X,
+        'target': y,
+        'feature_names': feature_names,
+        'categorical_features': categorical_features
+    }
 
 def get_and_preprocess_compas_data():
     """

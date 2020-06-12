@@ -10,6 +10,7 @@ import logging
 import os
 from typing import List
 
+import pandas as pd
 from sklearn.model_selection import train_test_split
 
 from experiments.utils.datasets import get_dataset
@@ -38,7 +39,14 @@ def run_test(config: dict) -> List[float]:
     dataset_params = config['dataset'].get('params', {})
     dataset = get_dataset(dataset_name, dataset_params)
     X = dataset['data']
+
+    if type(X) is pd.DataFrame:
+        X = X.values
+
     y = dataset['target']
+
+    if type(y) is pd.DataFrame:
+        y = y.values
 
     # Train
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=int(

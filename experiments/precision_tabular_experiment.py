@@ -12,6 +12,7 @@ from typing import List
 
 import numpy as np
 from sklearn.model_selection import train_test_split
+import pandas as pd
 
 from experiments.utils.constants import Explainers
 from experiments.utils.datasets import get_dataset
@@ -38,8 +39,16 @@ def run_test(config: dict) -> List[float]:
     dataset_name = config['dataset']['name']
     dataset_params = config['dataset'].get('params', {})
     dataset = get_dataset(dataset_name, dataset_params)
+
     X = dataset['data']
+
+    if type(X) is pd.DataFrame:
+        X = X.values
+
     y = dataset['target']
+
+    if type(y) is pd.DataFrame:
+        y = y.values
 
     # Train
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=int(
@@ -63,8 +72,9 @@ def run_test(config: dict) -> List[float]:
         )
 
         if config['explanations']['type'] == Explainers.LIMETABULAR:
-            categorical_feature_idxes = explainer.categorical_features
-        elif config['explanations']['type'] in [Explainers.NUMPYENSEMBLE, Explainers.NUMPYTABULAR]:
+            categorical_feature_idxes = explainer_params['categorical_features']
+        elif config['explanations']['type'] in [Explainers.NUMPYENSEMBLE, Explainers.NUMPYTABULAR,
+                                                Explainers.NUMPYROBUSTTABULAR]:
             categorical_feature_idxes = explainer.categorical_feature_idxes
         else:
             categorical_feature_idxes = []
@@ -90,7 +100,6 @@ def run_test(config: dict) -> List[float]:
         precisions.append(precision)
 
     return precisions
-
 
 
 if __name__ == '__main__':

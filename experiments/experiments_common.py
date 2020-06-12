@@ -142,9 +142,10 @@ def measure_time(predict_fn, X, explainer, inference_params, data_row_param_name
         inference_params[data_row_param_name] = X[i]
         _ = explainer.explain_instance(**inference_params)
     end = time.perf_counter()
-    total_time =  end - start
+    total_time = end - start
     avg_time = total_time / len(X)
     return avg_time
+
 
 def measure_consistency(model, X, explainer, inference_params, explainer_type,
                         num_exp_per_sample, data_row_param_name,
@@ -176,7 +177,8 @@ def measure_consistency(model, X, explainer, inference_params, explainer_type,
                 inference_params['labels'] = (output,)
                 explanations = explainer.explain_instance(**inference_params)
                 exp_buffer.add(frozenset(list(map(lambda x: x[0], explanations.as_list(output)))))
-            elif explainer_type in [Explainers.NUMPYTABULAR, Explainers.NUMPYENSEMBLE]:
+            elif explainer_type in [Explainers.NUMPYTABULAR, Explainers.NUMPYENSEMBLE,
+                                    Explainers.NUMPYROBUSTTABULAR]:
                 inference_params['label'] = output
                 explanations = explainer.explain_instance(**inference_params)
                 exp_buffer.add(frozenset(list(map(lambda x: x[0], explanations))))
@@ -235,7 +237,8 @@ def measure_precision(model, X, binarizer, feature_names, explainer, inference_p
         explanations = explainer.explain_instance(**inference_params)
         if explainer_type == Explainers.LIMETABULAR:
             features_exp = list(map(lambda x: x[0], explanations.as_list(1)))
-        elif explainer_type in [Explainers.NUMPYTABULAR, Explainers.NUMPYENSEMBLE]:
+        elif explainer_type in [Explainers.NUMPYTABULAR, Explainers.NUMPYENSEMBLE,
+                                Explainers.NUMPYROBUSTTABULAR]:
             features_exp = list(map(lambda x: x[0], explanations))
         else:
             features_exp = []
@@ -271,9 +274,10 @@ def measure_precision(model, X, binarizer, feature_names, explainer, inference_p
 
     return mean_precision
 
+
 def measure_coverage(model, X, binarizer, feature_names, explainer, inference_params,
-                      explainer_type,
-                      data_row_param_name, predict_fn_param_name):
+                     explainer_type,
+                     data_row_param_name, predict_fn_param_name):
     """
     Measures coverage of the model across a set of data
 
@@ -299,7 +303,8 @@ def measure_coverage(model, X, binarizer, feature_names, explainer, inference_pa
         explanations = explainer.explain_instance(**inference_params)
         if explainer_type == Explainers.LIMETABULAR:
             features_exp = list(map(lambda x: x[0], explanations.as_list(1)))
-        elif explainer_type in [Explainers.NUMPYTABULAR, Explainers.NUMPYENSEMBLE]:
+        elif explainer_type in [Explainers.NUMPYTABULAR, Explainers.NUMPYENSEMBLE,
+                                Explainers.NUMPYROBUSTTABULAR]:
             features_exp = list(map(lambda x: x[0], explanations))
         else:
             features_exp = []

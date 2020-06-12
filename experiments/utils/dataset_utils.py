@@ -39,7 +39,8 @@ def get_and_preprocess_adult_data():
         'categorical_features': categorical_features
     }
 
-def get_and_preprocess_compas_data():
+
+def get_and_preprocess_compas_data(encode=False):
     """
     Handle processing of COMPAS according to: https://github.com/propublica/compas-analysis
     """
@@ -76,11 +77,30 @@ def get_and_preprocess_compas_data():
     assert all((sens == 'African-American') == (X['race'] == PROTECTED_CLASS))
     cols = [col for col in X]
 
-    data = {
-        'data': X,
-        'target': y,
-        'cols': cols
-    }
+    if encode:
+        categorical_features = ["two_year_recid", "c_charge_degree_F", "c_charge_degree_M",
+                                "sex_Female", "sex_Male", "race"]
+        # Convert categorical features to ordinal
+        dict_le = {}
+        for cat_col in categorical_features:
+            le = LabelEncoder()
+            X[cat_col] = le.fit_transform(X[cat_col])
+            dict_le[cat_col] = le
+
+        data = {
+            'data': X,
+            'target': y,
+            'feature_names': cols,
+            'categorical_features': categorical_features,
+            'categorical_encoders': dict_le
+        }
+    else:
+        data = {
+            'data': X,
+            'target': y,
+            'cols': cols,
+            'feature_names': cols
+        }
 
     return data
 
@@ -118,4 +138,52 @@ def load_german_credit_dataset():
         'categorical_encoders': dict_le
     }
 
+    return data
+
+
+def get_and_preprocess_cc():
+    """"Handle processing of Communities and Crime.  We exclude rows with missing values and predict
+    if the violent crime is in the 50th percentile.
+    Parameters
+    ----------
+    params : Params
+    Returns:
+    ----------
+    Pandas data frame X of processed data, np.ndarray y, and list of column names
+    """
+    PROTECTED_CLASS = 1
+    UNPROTECTED_CLASS = 0
+    POSITIVE_OUTCOME = 1
+    NEGATIVE_OUTCOME = 0
+
+    X = pd.read_csv(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                                 "data/communities_and_crime_new_version.csv"), index_col=0)
+
+    # everything over 50th percentil gets negative outcome (lots of crime is bad)
+    high_violent_crimes_threshold = 50
+    y_col = 'ViolentCrimesPerPop numeric'
+
+    X = X[X[y_col] != "?"]
+    X[y_col] = X[y_col].values.astype('float32')
+
+    # just dump all x's that have missing values
+    cols_with_missing_values = []
+    for col in X:
+        if len(np.where(X[col].values == '?')[0]) >= 1:
+            cols_with_missing_values.append(col)
+
+    y = X[y_col]
+    y_cutoff = np.percentile(y, high_violent_crimes_threshold)
+    X = X.drop(cols_with_missing_values + ['communityname string', 'fold numeric', 'county numeric',
+                                           'community numeric', 'state numeric'] + [y_col], axis=1)
+
+    # setup ys
+    cols = [c for c in X]
+    y = np.array([NEGATIVE_OUTCOME if val > y_cutoff else POSITIVE_OUTCOME for val in y])
+
+    data = {
+        'data': X,
+        'target': y,
+        'feature_names': cols
+    }
     return data

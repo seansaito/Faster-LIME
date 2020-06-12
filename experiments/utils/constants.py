@@ -11,6 +11,7 @@ class Datasets:
     BREASTCANCER = 'breast_cancer'
     SYNTHETIC = 'synthetic'
     COMPAS = 'compas'
+    COMMUNITY = 'community'
 
 class Explainers:
     LIMETABULAR = 'lime_tabular'

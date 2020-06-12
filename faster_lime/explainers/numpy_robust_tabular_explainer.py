@@ -4,37 +4,50 @@ from scipy.spatial.distance import cdist
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
+from sklearn.ensemble import RandomForestRegressor
+
+from faster_lime.utils import dict_disc_to_bin
+
 
 def ridge_solve(tup):
     data_synthetic_onehot, model_pred, weights = tup
-    solver = Ridge(alpha=1, fit_intercept=True)
+    solver = RandomForestRegressor(n_jobs=10)
     solver.fit(data_synthetic_onehot,
                model_pred,
                sample_weight=weights.ravel())
 
     # Get explanations
-    importance = solver.coef_[
-        data_synthetic_onehot[0].toarray().ravel() == 1].ravel()
+    importance = solver.feature_importances_[data_synthetic_onehot[0].ravel() == 1].ravel()
     return importance
 
 
 class NumpyRobustTabularExplainer:
 
-    def __init__(self, training_data, ctgan_sampler=None, feature_names=None,
-                 categorical_feature_idxes=None,
-                 qs=[25, 50, 75], ctgan_epochs=100, **kwargs):
+    def __init__(self, training_data, ctgan_sampler=None, discriminator=None,
+                 feature_names=None, categorical_feature_idxes=None,
+                 qs='decile', ctgan_epochs=100, ctgan_verbose=False, use_cat_for_ctgan=True,
+                 ctgan_params={}, measure_distance='raw', nearest_neighbors=0.1, **kwargs):
         """
 
         Args:
             training_data (np.ndarray): Training data to measure training data statistics
             ctgan_sampler (Optional[CTGANSampler]): A CTGAN model
+            discriminator (Optional[Adversarial_Model]): Discriminator
             feature_names (list): List of feature names
             categorical_feature_idxes (list): List of idxes of features that are categorical
             qs (list): Discretization bins
             ctgan_epochs (int): Number of epochs to train the CTGAN
+            use_cat_for_ctgan (bool): Whether to use categorical features in training CTGAN
+            ctgan_params (dict): Additional params for CTGAN
+            measure_distance (str): "raw" - measure distances on raw synthetic samples
+                                    "onehot" - measure hamming distances on onehot samples
+            nearest_neighbors (float): What proportion of nearest neighbors to keep
         """
         self.training_data = training_data
         self.num_features = self.training_data.shape[1]
+        self.discriminator = discriminator
+        self.measure_distance = measure_distance
+        self.nearest_neighbors = nearest_neighbors
 
         # Parse columns
         if feature_names is not None:
@@ -69,14 +82,14 @@ class NumpyRobustTabularExplainer:
             training_data_num = self.training_data[:, self.numerical_feature_idxes]
             self.sc = StandardScaler(with_mean=False)
             self.sc.fit(training_data_num)
-            self.qs = qs
+            self.qs = dict_disc_to_bin[qs]
             self.all_bins_num = np.percentile(training_data_num, self.qs, axis=0).T
 
         # Categorical feature statistics
         if self.categorical_features:
             training_data_cat = self.training_data[:, self.categorical_feature_idxes]
             self.dict_categorical_hist = {
-                feature: np.bincount(training_data_cat[:, idx]) / self.training_data.shape[0] for
+                feature: np.bincount(training_data_cat[:, idx]) / float(self.training_data.shape[0]) for
                 (idx, feature) in enumerate(self.categorical_features)
             }
 
@@ -87,8 +100,16 @@ class NumpyRobustTabularExplainer:
 
         # Finally, if ctgan provided is None, train a new one
         if ctgan_sampler is None:
-            self.ctgan_sampler = CTGANSynthesizer()
-            self.ctgan_sampler.fit(training_data, categorical_feature_idxes, ctgan_epochs)
+            self.ctgan_sampler = CTGANSynthesizer(verbose=ctgan_verbose, **ctgan_params)
+
+            if use_cat_for_ctgan:
+                self.ctgan_sampler.fit(training_data, categorical_feature_idxes, ctgan_epochs)
+            else:
+                training_data_num = training_data[:, self.numerical_feature_idxes]
+                self.ctgan_sampler.fit(training_data_num, epochs=ctgan_epochs)
+
+            self.ctgan_uses_cat = use_cat_for_ctgan
+
         else:
             self.ctgan_sampler = ctgan_sampler
 
@@ -116,14 +137,35 @@ class NumpyRobustTabularExplainer:
             except Exception as e:
                 data_samples = None
 
+        # Prune using the discriminator
+        if self.discriminator:
+            if self.ctgan_uses_cat:
+                disc_pred = self.discriminator.perturbation_identifier.predict_proba(
+                    data_samples[:, self.discriminator.numerical_cols])
+            else:
+                disc_pred = self.discriminator.perturbation_identifier.predict_proba(
+                    data_samples)
+
+            data_samples = data_samples[disc_pred[:, 1] > 0.5]
+
         for batch_idx in range(num_estimators):
-            data_samples[batch_idx * num_samples] = data_row.ravel()
+            if self.ctgan_uses_cat:
+                data_samples[batch_idx * num_samples] = data_row.ravel()
+            else:
+                data_samples[batch_idx * num_samples] = data_row[:,
+                                                        self.numerical_feature_idxes].ravel()
+
+        # Update num_samples
+        num_samples = data_samples.shape[0]
 
         # Split data into numerical and categorical data and process
         list_orig = []
         list_disc = []
         if self.numerical_features:
-            data_num_synthetic = data_samples[:, self.numerical_feature_idxes]
+            if self.ctgan_uses_cat:
+                data_num_synthetic = data_samples[:, self.numerical_feature_idxes]
+            else:
+                data_num_synthetic = data_samples
             # Discretize
             data_synthetic_num_disc, _ = self.discretize(data_num_synthetic, self.qs,
                                                          self.all_bins_num)
@@ -132,9 +174,24 @@ class NumpyRobustTabularExplainer:
 
         if self.categorical_features:
             # Sample from training distribution for each categorical feature
-            data_cat_synthetic = data_samples[:, self.categorical_feature_idxes]
-            list_disc.append(data_cat_synthetic)
-            list_orig.append(data_cat_synthetic)
+            if self.ctgan_uses_cat:
+                data_cat_synthetic = data_samples[:, self.categorical_feature_idxes]
+                list_disc.append(data_cat_synthetic)
+                list_orig.append(data_cat_synthetic)
+            else:
+                # Need to generate sample categorical data without CTGAN
+                # Sample from training distribution for each categorical feature
+                data_cat = data_row[:, self.categorical_feature_idxes]
+                list_buf = []
+                for feature in self.categorical_features:
+                    list_buf.append(np.random.choice(a=len(self.dict_categorical_hist[feature]),
+                                                     size=(1, num_samples),
+                                                     p=self.dict_categorical_hist[feature]))
+                data_cat_original = data_cat_disc = np.concatenate(list_buf).T
+                data_cat_original[0] = data_cat.ravel()
+                data_cat_disc[0] = data_cat.ravel()
+                list_disc.append(data_cat_disc)
+                list_orig.append(data_cat_original)
 
         # Concatenate the data and reorder the columns
         data_synthetic_original = np.concatenate(list_orig, axis=1)
@@ -142,19 +199,37 @@ class NumpyRobustTabularExplainer:
         data_synthetic_original = data_synthetic_original[:, self.list_reorder]
         data_synthetic_disc = data_synthetic_disc[:, self.list_reorder]
 
-        # Get model predictions (i.e. groundtruth)
-        model_pred = predict_fn(data_synthetic_original)
+        # Turn discretized data into onehot
+        data_synthetic_onehot = OneHotEncoder(sparse=False).fit_transform(data_synthetic_disc)
 
-        # Get distances between original sample and neighbors
-        distances = cdist(data_synthetic_disc[:1], data_synthetic_disc).reshape(-1, 1)
+        if self.measure_distance == 'raw':
+            # Get distances between original sample and neighbors
+            if self.numerical_features:
+                data_num_scaled = self.sc.transform(data_num_synthetic)
+                distances = cdist(data_num_scaled[:1], data_num_scaled).reshape(-1, 1)
+            else:
+                distances = cdist(data_synthetic_disc[:1], data_synthetic_disc).reshape(-1, 1)
+        else:
+            distances = cdist(
+                XA=data_synthetic_onehot[:1],
+                XB=data_synthetic_onehot,
+                metric='hamming'
+            ).reshape(-1, 1)
+
+        # Limit to top k% of nearest neighbors
+        arg_idx = np.argsort(distances.ravel())[:int(self.nearest_neighbors * len(distances))]
+        data_synthetic_disc = data_synthetic_disc[arg_idx]
+        distances = distances[arg_idx]
+        data_synthetic_onehot = data_synthetic_onehot[arg_idx]
+
+        # Get model predictions (i.e. groundtruth)
+        data_synthetic_original = data_synthetic_original[arg_idx]
+        model_pred = predict_fn(data_synthetic_original)
 
         # Weight distances according to some kernel (e.g. Gaussian)
         if kernel_width is None:
             kernel_width = np.sqrt(data_row.shape[1]) * 0.75
         weights = self.kernel_fn(distances, kernel_width=kernel_width).ravel()
-
-        # Turn discretized data into onehot
-        data_synthetic_onehot = OneHotEncoder().fit_transform(data_synthetic_disc)
 
         batch_size = num_samples
         importances = []

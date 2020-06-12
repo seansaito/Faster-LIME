@@ -2,8 +2,7 @@ import sklearn.datasets as scikit_datasets
 
 from experiments.utils.constants import Datasets
 from experiments.utils.dataset_utils import load_german_credit_dataset, \
-    get_and_preprocess_compas_data, get_and_preprocess_adult_data, get_and_preprocess_german_robust, \
-    get_and_preprocess_cc
+    get_and_preprocess_compas_data, get_and_preprocess_adult_data, get_and_preprocess_cc
 
 datasets = {
     Datasets.BREASTCANCER: scikit_datasets.load_breast_cancer,

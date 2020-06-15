@@ -26,7 +26,7 @@ class NumpyRobustTabularExplainer:
     def __init__(self, training_data, ctgan_sampler=None, discriminator=None,
                  feature_names=None, categorical_feature_idxes=None,
                  qs='decile', ctgan_epochs=100, ctgan_verbose=False, use_cat_for_ctgan=True,
-                 ctgan_params={}, measure_distance='raw', nearest_neighbors=0.1, **kwargs):
+                 ctgan_params={}, measure_distance='mix', nearest_neighbors=0.1, **kwargs):
         """
 
         Args:
@@ -133,7 +133,7 @@ class NumpyRobustTabularExplainer:
         while data_samples is None:
             try:
                 data_samples = self.ctgan_sampler.sample(
-                    int(num_estimators) * int(num_samples))
+                    int(num_estimators) * int(num_samples), test_instance=data_row)
             except Exception as e:
                 data_samples = None
 
@@ -209,6 +209,19 @@ class NumpyRobustTabularExplainer:
                 distances = cdist(data_num_scaled[:1], data_num_scaled).reshape(-1, 1)
             else:
                 distances = cdist(data_synthetic_disc[:1], data_synthetic_disc).reshape(-1, 1)
+        elif self.measure_distance == 'mix':
+            # mix hamming and euclidean distances
+            if self.categorical_features:
+                data_cat = data_synthetic_onehot[:, self.categorical_feature_idxes]
+                cat_distances = cdist(XA = data_cat[:1], XB = data_cat, metric='hamming').reshape(-1, 1)
+            else:
+                cat_distances = 0
+            if self.numerical_features:
+                data_num_scaled = self.sc.transform(data_num_synthetic)
+                num_distances = cdist(data_num_scaled[:1], data_num_scaled).reshape(-1, 1)
+            else:
+                num_distances = 0
+            distances = cat_distances + num_distances
         else:
             distances = cdist(
                 XA=data_synthetic_onehot[:1],

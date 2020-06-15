@@ -1,0 +1,34 @@
+{
+  "dataset": {
+    "name": "compas",
+    "params": {
+      "encode": true
+    }
+ },
+  "model": {
+    "name": "RandomForestClassifier",
+    "params": {
+      "n_estimators": 100
+    }
+  },
+  "explanations": {
+    "type": "lime_tabular",
+    "n_explanations": 100,
+    "num_exp_per_sample": 2,
+    "model_params": {
+      "categorical_features": [1, 4, 5, 6, 7, 8],
+      "categorical_names": ["two_year_recid", "c_charge_degree_F", "c_charge_degree_M", "sex_Female", "sex_Male", "race"]
+    },
+    "inference_params": {
+      "num_samples": 1000,
+      "num_features": 5
+    },
+    "data_row_param_name": "data_row",
+    "predict_fn_param_name": "predict_fn"
+  },
+  "experiments": {
+    "n_runs": 5,
+    "type": "num_exp_per_sample",
+    "values": [2, 3, 4, 5, 6, 7, 8, 9, 10]
+  }
+}

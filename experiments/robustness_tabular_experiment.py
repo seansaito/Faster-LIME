@@ -21,6 +21,7 @@ import os
 from datetime import datetime
 
 import numpy as np
+import pandas as pd
 from sklearn.externals import joblib
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
@@ -34,12 +35,82 @@ from experiments.utils.explainers import get_explainer
 DATASET_CONFIGS = {
     Datasets.COMPAS: {
         'biased_column': 'race',
-        'unrelated_column': 'unrelated_column'
+        'unrelated_column': 'unrelated_column',
+        'use_cat_for_ctgan': True,
+        'ctgan_params': {}
+    },
+    Datasets.GERMANCREDIT: {
+        'biased_column': 'Sex',
+        'unrelated_column': 'unrelated_column',
+        'use_cat_for_ctgan': False,
+        'ctgan_params': {
+            'embedding_dim': 512,
+            'gen_dim': (256, 256, 256, 256, 256),
+            'dis_dim': (256, 256, 256, 256, 256)
+        }
+    },
+    Datasets.ADULT: {
+        'biased_column': 'sex',
+        'unrelated_column': 'unrelated_column',
+        'use_cat_for_ctgan': False,
+        'ctgan_params': {
+            'embedding_dim': 512,
+            'gen_dim': (256, 256, 256, 256, 256),
+            'dis_dim': (256, 256, 256, 256, 256)
+        }
+    },
+    Datasets.COMMUNITY: {
+        'biased_column': 'racePctWhite numeric',
+        'unrelated_column': 'unrelated_column',
+        'use_cat_for_ctgan': True,
+        'ctgan_params': {
+            'embedding_dim': 512,
+            'gen_dim': (256, 256, 256, 256, 256),
+            'dis_dim': (256, 256, 256, 256, 256)
+        }
     }
 }
 
 
+class sexist_model_f:
+    """
+    For the German credit dataset
+    """
+
+    def __init__(self, sex_index):
+        self.sex_index = sex_index
+
+    # Decision rule: classify negatively if race is black
+    def predict(self, X):
+        return np.array([0 if x[self.sex_index] > 0 else 1 for x in X])
+
+    def predict_proba(self, X):
+        return one_hot_encode(self.predict(X))
+
+    def score(self, X, y):
+        return np.sum(self.predict(X) == y) / len(X)
+
+
+class innocuous_model_psi_german:
+
+    def __init__(self, unrelated_index):
+        self.unrelated_index = unrelated_index
+
+    # Decision rule: classify according to randomly drawn column 'unrelated column'
+    def predict(self, X):
+        return np.array([0 if x[self.unrelated_index] > 0 else 1 for x in X])
+
+    def predict_proba(self, X):
+        return one_hot_encode(self.predict(X))
+
+    def score(self, X, y):
+        return np.sum(self.predict(X) == y) / len(X)
+
+
 class racist_model_f:
+    """
+    For the COMPAS dataset
+    """
 
     def __init__(self, race_index):
         self.race_index = race_index
@@ -84,13 +155,46 @@ def preprocess_robustness_datasets(dataset, params={}):
         categorical_feature_indcs = [features.index(c) for c in categorical_feature_name]
 
         X = X.values
+
+    elif dataset == Datasets.GERMANCREDIT:
+        X, y = data['data'], data['target']
+        X = pd.DataFrame(X, columns=data['feature_names'])
+        X[DATASET_CONFIGS[Datasets.GERMANCREDIT]['unrelated_column']] = np.random.choice([0, 1],
+                                                                                         size=
+                                                                                         X.shape[0])
+        features = list(X.columns)
+        categorical_feature_name = data['categorical_features'] + ['unrelated_column']
+        categorical_feature_indcs = [features.index(c) for c in categorical_feature_name]
+
+        X = X.values
+
+    elif dataset == Datasets.ADULT:
+        X, y = data['data'], data['target']
+        X[DATASET_CONFIGS[Datasets.ADULT]['unrelated_column']] = np.random.choice([0, 1],
+                                                                                  size=
+                                                                                  X.shape[0])
+        features = list(X.columns)
+        categorical_feature_name = data['categorical_features'] + ['unrelated_column']
+        categorical_feature_indcs = [features.index(c) for c in categorical_feature_name]
+        X = X.values
+
+    elif dataset == Datasets.COMMUNITY:
+        X, y = data['data'], data['target']
+        X[DATASET_CONFIGS[Datasets.COMMUNITY]['unrelated_column']] = np.random.choice(
+            [0, 1],
+            size=
+            X.shape[0]).astype(int)
+        features = list(X.columns)
+        categorical_feature_name = [DATASET_CONFIGS[Datasets.COMMUNITY]['unrelated_column']]
+        categorical_feature_indcs = [features.index(c) for c in categorical_feature_name]
+        X = X.values
     else:
         raise KeyError('Dataset {} not available'.format(dataset))
 
     return X, y, features, categorical_feature_name, categorical_feature_indcs
 
 
-def get_explanations(explainer, X, adv_lime, explainer_name, top_features=3, num_samples=5000):
+def get_explanations(explainer, X, adv_lime, explainer_name, top_features=3, num_samples=1000):
     list_top_k = []
 
     for idx in tqdm(range(X.shape[0])):
@@ -101,7 +205,8 @@ def get_explanations(explainer, X, adv_lime, explainer_name, top_features=3, num
                                              labels=(0, 1)).as_list(label)
         else:
             exp = explainer.explain_instance(X[idx], adv_lime.predict_proba, label=label,
-                                             num_samples=num_samples, num_features=top_features)
+                                             num_samples=num_samples * 20,
+                                             num_features=top_features)
         top_k = [e[0] for e in exp]
         list_top_k.append(top_k)
 
@@ -128,28 +233,48 @@ def measure_robustness(dataset, top_features=3, params={}):
     }
     original_lime = get_explainer(Explainers.LIMETABULAR, original_lime_params)
 
+    # Train the adversarial model for LIME with f and psi
+    logger.info('Initializing Fooling LIME')
+    if dataset in [Datasets.COMPAS, Datasets.COMMUNITY]:
+        biased_model = racist_model_f(biased_index)
+        innocuous_model = innocuous_model_psi(unrelated_index)
+    elif dataset in [Datasets.GERMANCREDIT, Datasets.ADULT]:
+        biased_model = sexist_model_f(biased_index)
+        innocuous_model = innocuous_model_psi_german(unrelated_index)
+    else:
+        raise KeyError('Dataset not supported: {}'.format(dataset))
+
+    adv_lime = Adversarial_Lime_Model(
+        biased_model,
+        innocuous_model).train(X_train, y_train,
+                               feature_names=features,
+                               categorical_features=categorical_feature_indcs)
+
+    adv_lime_for_explainer = Adversarial_Lime_Model(
+        biased_model,
+        innocuous_model).train(X_train, y_train,
+                               feature_names=features,
+                               categorical_features=categorical_feature_indcs)
+
     # Get robust lime
     logger.info('Initializing CTGAN-LIME')
     robust_lime_params = {
-        'training_data': X_train,
+        'training_data': X,
         'feature_names': features,
-        'categorical_feature_idxes': categorical_feature_indcs
+        'categorical_feature_idxes': categorical_feature_indcs,
+        'ctgan_epochs': 300,
+        'ctgan_verbose': True,
+        'use_cat_for_ctgan': DATASET_CONFIGS[dataset]['use_cat_for_ctgan'],
+        'discriminator': adv_lime_for_explainer,
+        'ctgan_params': DATASET_CONFIGS[dataset]['ctgan_params']
     }
     robust_lime = get_explainer(Explainers.NUMPYROBUSTTABULAR, robust_lime_params)
-
-    # Train the adversarial model for LIME with f and psi
-    logger.info('Initializing Fooling LIME')
-    adv_lime = Adversarial_Lime_Model(
-        racist_model_f(biased_index),
-        innocuous_model_psi(unrelated_index)).train(X_train, y_train,
-                                                    feature_names=features,
-                                                    categorical_features=categorical_feature_indcs)
 
     # Train the adversarial model with CTGAN
     logger.info('Initializing Fooling LIME with CTGAN')
     adv_ctgan_lime = Adversarial_Lime_Model(
-        racist_model_f(biased_index),
-        innocuous_model_psi(unrelated_index)).train_ctgan(
+        biased_model,
+        innocuous_model).train_ctgan(
         X_train, y_train,
         ctgan_sampler=robust_lime.ctgan_sampler,
         feature_names=features,
@@ -226,7 +351,7 @@ def main(dataset, num_runs, top_features, params={}):
     timestamp = str(int(datetime.timestamp(now)))
     save_path = create_save_path(
         save_dir=save_dir,
-        config_name='robustness_results_top_features_{}'.format(top_features),
+        config_name='{}_robustness_results_top_features_{}'.format(dataset, top_features),
         timestamp=timestamp
     )
     logger.info('Saving results to {}'.format(save_path))
@@ -236,14 +361,15 @@ def main(dataset, num_runs, top_features, params={}):
 if __name__ == '__main__':
     np.random.seed(123456)
     parser = argparse.ArgumentParser(allow_abbrev=False)
-    parser.add_argument('--log_out', required=False, type=str, default='logs/robustness_tabular_out.log',
+    parser.add_argument('--log_out', required=False, type=str,
+                        default='',
                         help='Place to log output')
     parser.add_argument('--save_dir', required=False, type=str,
-                        default='experiments/robustness_tabular_results',
+                        default='',
                         help='Place to save results')
     parser.add_argument('--dataset', required=False, type=str, default=Datasets.COMPAS,
                         help='Dataset to measure robustness with')
-    parser.add_argument('--num_runs', required=False, type=int, default=5,
+    parser.add_argument('--num_runs', required=False, type=int, default=1,
                         help='Number of trials to run')
     parser.add_argument('--top_features', required=False, type=int, default=3,
                         help='Number of top features')
@@ -256,6 +382,12 @@ if __name__ == '__main__':
     dataset = args['dataset']
     num_runs = int(args['num_runs'])
     top_features = int(args['top_features'])
+
+    if not log_out:
+        log_out = 'experiments/logs/{}_robustness.log'.format(dataset)
+
+    if not save_dir:
+        save_dir = 'experiments/robustness_{}_results'.format(dataset)
 
     os.makedirs(save_dir, exist_ok=True)
 

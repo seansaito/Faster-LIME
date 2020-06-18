@@ -4,20 +4,21 @@ from scipy.spatial.distance import cdist
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 
 from faster_lime.utils import dict_disc_to_bin
 
 
 def ridge_solve(tup):
     data_synthetic_onehot, model_pred, weights = tup
-    solver = RandomForestRegressor(n_jobs=10)
+    solver = Ridge(alpha=1, fit_intercept=True)
     solver.fit(data_synthetic_onehot,
                model_pred,
                sample_weight=weights.ravel())
 
     # Get explanations
-    importance = solver.feature_importances_[data_synthetic_onehot[0].ravel() == 1].ravel()
+    importance = solver.coef_[
+        data_synthetic_onehot[0].ravel() == 1].ravel()
     return importance
 
 
@@ -25,8 +26,9 @@ class NumpyRobustTabularExplainer:
 
     def __init__(self, training_data, ctgan_sampler=None, discriminator=None,
                  feature_names=None, categorical_feature_idxes=None,
-                 qs='decile', ctgan_epochs=100, ctgan_verbose=False, use_cat_for_ctgan=True,
-                 ctgan_params={}, measure_distance='mix', nearest_neighbors=0.1, **kwargs):
+                 qs='quartile', ctgan_epochs=100, ctgan_verbose=False, use_cat_for_ctgan=True,
+                 ctgan_params={}, measure_distance='mix', nearest_neighbors=0.1, use_onehot=True,
+                 **kwargs):
         """
 
         Args:
@@ -42,12 +44,15 @@ class NumpyRobustTabularExplainer:
             measure_distance (str): "raw" - measure distances on raw synthetic samples
                                     "onehot" - measure hamming distances on onehot samples
             nearest_neighbors (float): What proportion of nearest neighbors to keep
+            use_onehot (bool): Whether to use one-hot samples
         """
         self.training_data = training_data
         self.num_features = self.training_data.shape[1]
         self.discriminator = discriminator
         self.measure_distance = measure_distance
         self.nearest_neighbors = nearest_neighbors
+        self.use_onehot = use_onehot
+        print('Using onehot: {}'.format(self.use_onehot))
 
         # Parse columns
         if feature_names is not None:
@@ -89,7 +94,8 @@ class NumpyRobustTabularExplainer:
         if self.categorical_features:
             training_data_cat = self.training_data[:, self.categorical_feature_idxes]
             self.dict_categorical_hist = {
-                feature: np.bincount(training_data_cat[:, idx]) / float(self.training_data.shape[0]) for
+                feature: np.bincount(training_data_cat[:, idx].astype(np.int64)) / float(
+                    self.training_data.shape[0]) for
                 (idx, feature) in enumerate(self.categorical_features)
             }
 
@@ -167,8 +173,8 @@ class NumpyRobustTabularExplainer:
             else:
                 data_num_synthetic = data_samples
             # Discretize
-            data_synthetic_num_disc, _ = self.discretize(data_num_synthetic, self.qs,
-                                                         self.all_bins_num)
+            data_synthetic_num_disc, _ = self.discretize(data_num_synthetic, qs=self.qs,
+                                                         all_bins=self.all_bins_num)
             list_disc.append(data_synthetic_num_disc)
             list_orig.append(data_num_synthetic)
 
@@ -213,7 +219,7 @@ class NumpyRobustTabularExplainer:
             # mix hamming and euclidean distances
             if self.categorical_features:
                 data_cat = data_synthetic_onehot[:, self.categorical_feature_idxes]
-                cat_distances = cdist(XA = data_cat[:1], XB = data_cat, metric='hamming').reshape(-1, 1)
+                cat_distances = cdist(XA=data_cat[:1], XB=data_cat, metric='hamming').reshape(-1, 1)
             else:
                 cat_distances = 0
             if self.numerical_features:
@@ -247,7 +253,13 @@ class NumpyRobustTabularExplainer:
         batch_size = num_samples
         importances = []
 
-        iterator = ((data_synthetic_onehot[batch_idx * batch_size:(batch_idx + 1) * batch_size],
+        if self.use_onehot:
+            data = data_synthetic_onehot
+        else:
+            data = data_synthetic_disc
+
+
+        iterator = ((data[batch_idx * batch_size:(batch_idx + 1) * batch_size],
                      model_pred[batch_idx * batch_size:(batch_idx + 1) * batch_size, label],
                      weights[batch_idx * batch_size:(batch_idx + 1) * batch_size]) for batch_idx
                     in range(num_estimators))
@@ -269,7 +281,7 @@ class NumpyRobustTabularExplainer:
             if feature_type == 'categorical':
                 exp = '{} = {}'.format(feature, data_row[0][feature_idx])
             else:
-                num_bin = data_synthetic_disc[0][feature_idx]
+                num_bin = int(data_synthetic_disc[0][feature_idx])
                 bins = self.all_bins_num[self.dict_num_feature_to_idx[feature]]
                 if num_bin == 0:
                     exp = '{} < {}'.format(feature, bins[0])

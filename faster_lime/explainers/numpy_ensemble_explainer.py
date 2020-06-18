@@ -201,7 +201,7 @@ class NumpyEnsembleExplainer:
             if feature_type == 'categorical':
                 exp = '{} = {}'.format(feature, data_row[0][feature_idx])
             else:
-                num_bin = data_synthetic_disc[0][feature_idx]
+                num_bin = int(data_synthetic_disc[0][feature_idx])
                 bins = self.all_bins_num[self.dict_num_feature_to_idx[feature]]
                 if num_bin == 0:
                     exp = '{} < {}'.format(feature, bins[0])

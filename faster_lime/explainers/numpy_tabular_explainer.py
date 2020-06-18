@@ -3,6 +3,8 @@ from scipy.spatial.distance import cdist
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
+from faster_lime.utils import dict_disc_to_bin
+
 
 class NumpyTabularExplainer:
 
@@ -58,14 +60,15 @@ class NumpyTabularExplainer:
             training_data_num = self.training_data[:, self.numerical_feature_idxes]
             self.sc = StandardScaler(with_mean=False)
             self.sc.fit(training_data_num)
-            self.qs = qs
+            self.qs = dict_disc_to_bin[qs]
             self.all_bins_num = np.percentile(training_data_num, self.qs, axis=0).T
 
         # Categorical feature statistics
         if self.categorical_features:
             training_data_cat = self.training_data[:, self.categorical_feature_idxes]
             self.dict_categorical_hist = {
-                feature: np.bincount(training_data_cat[:, idx]) / self.training_data.shape[0] for
+                feature: np.bincount(training_data_cat[:, idx].astype(np.int64)) / float(
+                    self.training_data.shape[0]) for
                 (idx, feature) in enumerate(self.categorical_features)
             }
 
@@ -161,7 +164,7 @@ class NumpyTabularExplainer:
             if feature_type == 'categorical':
                 exp = '{} = {}'.format(feature, data_row[0][feature_idx])
             else:
-                num_bin = data_synthetic_disc[0][feature_idx]
+                num_bin = int(data_synthetic_disc[0][feature_idx])
                 bins = self.all_bins_num[self.dict_num_feature_to_idx[feature]]
                 if num_bin == 0:
                     exp = '{} < {}'.format(feature, bins[0])

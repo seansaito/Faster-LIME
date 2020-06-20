@@ -24,6 +24,7 @@ import numpy as np
 import pandas as pd
 from sklearn.externals import joblib
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 
 from experiments.experiments_common import create_save_path
@@ -37,7 +38,12 @@ DATASET_CONFIGS = {
         'biased_column': 'race',
         'unrelated_column': 'unrelated_column',
         'use_cat_for_ctgan': True,
-        'ctgan_params': {}
+        'ctgan_params': {
+            'embedding_dim': 512,
+            'gen_dim': (256, 256, 256, 256, 256),
+            'dis_dim': (256, 256, 256, 256, 256)
+        },
+        'discriminator_threshold': 0.5
     },
     Datasets.GERMANCREDIT: {
         'biased_column': 'Sex',
@@ -47,17 +53,11 @@ DATASET_CONFIGS = {
             'embedding_dim': 512,
             'gen_dim': (256, 256, 256, 256, 256),
             'dis_dim': (256, 256, 256, 256, 256)
-        }
-    },
-    Datasets.ADULT: {
-        'biased_column': 'sex',
-        'unrelated_column': 'unrelated_column',
-        'use_cat_for_ctgan': False,
-        'ctgan_params': {
-            'embedding_dim': 512,
-            'gen_dim': (256, 256, 256, 256, 256),
-            'dis_dim': (256, 256, 256, 256, 256)
-        }
+        },
+        'ctgan_epochs': 300,
+        'use_onehot': True,
+        'measure_distance': 'raw',
+        'discriminator_threshold': 0.5
     },
     Datasets.COMMUNITY: {
         'biased_column': 'racePctWhite numeric',
@@ -66,8 +66,12 @@ DATASET_CONFIGS = {
         'ctgan_params': {
             'embedding_dim': 512,
             'gen_dim': (256, 256, 256, 256, 256),
-            'dis_dim': (256, 256, 256, 256, 256)
-        }
+            'dis_dim': (256, 256, 256, 256, 256),
+        },
+        'ctgan_epochs': 1000,
+        'use_onehot': False,
+        'measure_distance': 'raw',
+        'discriminator_threshold': 0.01
     }
 }
 
@@ -191,6 +195,11 @@ def preprocess_robustness_datasets(dataset, params={}):
     else:
         raise KeyError('Dataset {} not available'.format(dataset))
 
+    numerical_features = [f for f in features if f not in categorical_feature_name]
+    numerical_feature_indcs = [features.index(c) for c in numerical_features]
+    sc = StandardScaler()
+    X[:, numerical_feature_indcs] = sc.fit_transform(X[:, numerical_feature_indcs])
+
     return X, y, features, categorical_feature_name, categorical_feature_indcs
 
 
@@ -205,7 +214,7 @@ def get_explanations(explainer, X, adv_lime, explainer_name, top_features=3, num
                                              labels=(0, 1)).as_list(label)
         else:
             exp = explainer.explain_instance(X[idx], adv_lime.predict_proba, label=label,
-                                             num_samples=num_samples * 20,
+                                             num_samples=num_samples,
                                              num_features=top_features)
         top_k = [e[0] for e in exp]
         list_top_k.append(top_k)
@@ -262,12 +271,16 @@ def measure_robustness(dataset, top_features=3, params={}):
         'training_data': X,
         'feature_names': features,
         'categorical_feature_idxes': categorical_feature_indcs,
-        'ctgan_epochs': 300,
+        'ctgan_epochs': DATASET_CONFIGS[dataset].get('ctgan_epochs', 300),
         'ctgan_verbose': True,
         'use_cat_for_ctgan': DATASET_CONFIGS[dataset]['use_cat_for_ctgan'],
         'discriminator': adv_lime_for_explainer,
-        'ctgan_params': DATASET_CONFIGS[dataset]['ctgan_params']
+        'discriminator_threshold': DATASET_CONFIGS[dataset].get('discriminator_threshold', 0.5),
+        'ctgan_params': DATASET_CONFIGS[dataset]['ctgan_params'],
+        'use_onehot': DATASET_CONFIGS[dataset].get('use_onehot', True),
+        'measure_distance': DATASET_CONFIGS[dataset].get('measure_distance', 'raw')
     }
+
     robust_lime = get_explainer(Explainers.NUMPYROBUSTTABULAR, robust_lime_params)
 
     # Train the adversarial model with CTGAN
@@ -280,14 +293,18 @@ def measure_robustness(dataset, top_features=3, params={}):
         feature_names=features,
         categorical_features=categorical_feature_indcs)
 
-    model_pairs = [(original_lime, adv_lime),
-                   (robust_lime, adv_lime),
-                   (original_lime, adv_ctgan_lime),
-                   (robust_lime, adv_ctgan_lime)]
-    name_pairs = [(Explainers.LIMETABULAR, 'Fooling LIME'),
-                  (Explainers.NUMPYROBUSTTABULAR, 'Fooling LIME'),
-                  (Explainers.LIMETABULAR, 'Fooling LIME with CTGAN'),
-                  (Explainers.NUMPYROBUSTTABULAR, 'Fooling LIME with CTGAN')]
+    model_pairs = [
+        (original_lime, adv_lime),
+        (original_lime, adv_ctgan_lime),
+        (robust_lime, adv_lime),
+        (robust_lime, adv_ctgan_lime)
+    ]
+    name_pairs = [
+        (Explainers.LIMETABULAR, 'Fooling LIME'),
+        (Explainers.LIMETABULAR, 'Fooling LIME v2'),
+        (Explainers.NUMPYROBUSTTABULAR, 'Fooling LIME'),
+        (Explainers.NUMPYROBUSTTABULAR, 'Fooling LIME with CTGAN')
+    ]
 
     list_results = []
 
@@ -341,8 +358,10 @@ def main(dataset, num_runs, top_features, params={}):
         logger.info('Results for {}'.format(key))
         logger.info('Mean top 1 accuracy: {:.4f} (+/- {:.4f})'.format(np.mean(items['top_1_acc']),
                                                                       np.std(items['top_1_acc'])))
-        logger.info('Mean top k accuracy: {:.4f} (+/- {:.4f})'.format(np.mean(items['top_k_acc']),
-                                                                      np.std(items['top_k_acc'])))
+        logger.info('Mean top k ({}) accuracy: {:.4f} (+/- {:.4f})'.format(top_features, np.mean(
+            items['top_k_acc']),
+                                                                           np.std(
+                                                                               items['top_k_acc'])))
         logger.info(
             'Mean success rate: {:.4f} (+/- {:.4f})'.format(np.mean(items['attack_success_rate']),
                                                             np.std(items['attack_success_rate'])))
@@ -356,6 +375,7 @@ def main(dataset, num_runs, top_features, params={}):
     )
     logger.info('Saving results to {}'.format(save_path))
     joblib.dump(dict_results, save_path)
+    return dict_results
 
 
 if __name__ == '__main__':
@@ -371,8 +391,8 @@ if __name__ == '__main__':
                         help='Dataset to measure robustness with')
     parser.add_argument('--num_runs', required=False, type=int, default=1,
                         help='Number of trials to run')
-    parser.add_argument('--top_features', required=False, type=int, default=3,
-                        help='Number of top features')
+    parser.add_argument('--max_features', required=False, type=int, default=3,
+                        help='How many features to iterate through?')
 
     # Parse args
     args = parser.parse_args()
@@ -381,7 +401,7 @@ if __name__ == '__main__':
     save_dir = args['save_dir']
     dataset = args['dataset']
     num_runs = int(args['num_runs'])
-    top_features = int(args['top_features'])
+    max_features = int(args['max_features'])
 
     if not log_out:
         log_out = 'experiments/logs/{}_robustness.log'.format(dataset)
@@ -401,9 +421,22 @@ if __name__ == '__main__':
 
     # Run main
     logger.info('Received following params: {}'.format(args))
-    list_results = main(
-        dataset=dataset,
-        num_runs=num_runs,
-        top_features=top_features
+    list_all_results = []
+    for top_features in range(max_features):
+        dict_results = main(
+            dataset=dataset,
+            num_runs=num_runs,
+            top_features=int(top_features)
+        )
+        list_all_results.append({top_features: dict_results})
+
+    now = datetime.now()
+    timestamp = str(int(datetime.timestamp(now)))
+    save_path = create_save_path(
+        save_dir=save_dir,
+        config_name='{}_robustness_results_max_features_{}'.format(dataset, max_features),
+        timestamp=timestamp
     )
-    logger.info('Finished running experiments: {}'.format(list_results))
+    logger.info('Saving results to {}'.format(save_path))
+    joblib.dump(list_all_results, save_path)
+    logger.info('Finished running experiments')

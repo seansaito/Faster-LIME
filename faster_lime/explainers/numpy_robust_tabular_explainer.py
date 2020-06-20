@@ -26,9 +26,9 @@ class NumpyRobustTabularExplainer:
 
     def __init__(self, training_data, ctgan_sampler=None, discriminator=None,
                  feature_names=None, categorical_feature_idxes=None,
-                 qs='quartile', ctgan_epochs=100, ctgan_verbose=False, use_cat_for_ctgan=True,
-                 ctgan_params={}, measure_distance='mix', nearest_neighbors=0.1, use_onehot=True,
-                 **kwargs):
+                 qs='decile', ctgan_epochs=100, ctgan_verbose=False, use_cat_for_ctgan=True,
+                 ctgan_params={}, measure_distance='mix', nearest_neighbors=0.8, use_onehot=True,
+                 discriminator_threshold=0.5, **kwargs):
         """
 
         Args:
@@ -52,7 +52,7 @@ class NumpyRobustTabularExplainer:
         self.measure_distance = measure_distance
         self.nearest_neighbors = nearest_neighbors
         self.use_onehot = use_onehot
-        print('Using onehot: {}'.format(self.use_onehot))
+        self.discriminator_threshold = discriminator_threshold
 
         # Parse columns
         if feature_names is not None:
@@ -152,7 +152,7 @@ class NumpyRobustTabularExplainer:
                 disc_pred = self.discriminator.perturbation_identifier.predict_proba(
                     data_samples)
 
-            data_samples = data_samples[disc_pred[:, 1] > 0.5]
+            data_samples = data_samples[disc_pred[:, 1] >= self.discriminator_threshold]
 
         for batch_idx in range(num_estimators):
             if self.ctgan_uses_cat:

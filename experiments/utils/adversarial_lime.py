@@ -180,13 +180,14 @@ class Adversarial_Lime_Model(Adversarial_Model):
 
         # loop over perturbation data to create larger data set
         for _ in range(perturbation_multiplier):
-            perturbed_xtrain_lime = np.random.normal(0, self.perturbation_std, size=X.shape)
+            # perturbed_xtrain_lime = np.random.normal(0, self.perturbation_std, size=X.shape)
             perturbed_xtrain = ctgan_sampler.sample(X.shape[0])
             if perturbed_xtrain.shape[1] > X.shape[1]:
                 perturbed_xtrain = perturbed_xtrain[:, self.numerical_cols]
-            p_train_x = np.vstack([X, perturbed_xtrain, X + perturbed_xtrain_lime])
+            # p_train_x = np.vstack([X, perturbed_xtrain, X + perturbed_xtrain_lime])
+            p_train_x = np.vstack([X, perturbed_xtrain])
             p_train_y = np.concatenate(
-                (np.ones(X.shape[0]), np.zeros(X.shape[0]), np.zeros(X.shape[0])))
+                (np.ones(X.shape[0]), np.zeros(X.shape[0])))
 
             all_x.append(p_train_x)
             all_y.append(p_train_y)

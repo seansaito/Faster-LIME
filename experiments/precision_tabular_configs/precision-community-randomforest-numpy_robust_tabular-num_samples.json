@@ -1,7 +1,8 @@
 {
   "dataset": {
-    "name": "german_credit",
-    "params": {}
+    "name": "compas",
+    "params": {
+    }
   },
   "model": {
     "name": "RandomForestClassifier",
@@ -13,13 +14,19 @@
     "type": "numpy_robust_tabular",
     "n_explanations": 100,
     "model_params": {
-      "categorical_feature_idxes": [1, 2, 3, 4, 5, 8],
       "ctgan_epochs": 300,
-      "use_onehot": false
+      "ctgan_params": {
+        "embedding_dim": 512,
+        "gen_dim": [256, 256, 256, 256, 256],
+        "dis_dim": [256, 256, 256, 256, 256]
+      },
+      "measure_distance": "raw",
+      "categorical_feature_idxes": [],
+      "use_onehot": true
     },
     "inference_params": {
       "num_samples": 1000,
-      "num_features": 5
+      "num_features": 20
     },
     "data_row_param_name": "data_row",
     "predict_fn_param_name": "predict_fn"
@@ -27,6 +34,6 @@
   "experiments": {
     "n_runs": 5,
     "type": "num_samples",
-    "values": [1000, 2000, 3000, 4000, 5000]
+    "values": [1000, 2000, 3000]
   }
 }

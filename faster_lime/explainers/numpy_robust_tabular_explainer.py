@@ -4,8 +4,6 @@ from scipy.spatial.distance import cdist
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-
 from faster_lime.utils import dict_disc_to_bin
 
 
@@ -37,7 +35,7 @@ class NumpyRobustTabularExplainer:
             discriminator (Optional[Adversarial_Model]): Discriminator
             feature_names (list): List of feature names
             categorical_feature_idxes (list): List of idxes of features that are categorical
-            qs (list): Discretization bins
+            qs (str): Discretization resolution
             ctgan_epochs (int): Number of epochs to train the CTGAN
             use_cat_for_ctgan (bool): Whether to use categorical features in training CTGAN
             ctgan_params (dict): Additional params for CTGAN

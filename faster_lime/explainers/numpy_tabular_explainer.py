@@ -10,13 +10,13 @@ class NumpyTabularExplainer:
 
     def __init__(self, training_data, feature_names=None,
                  categorical_feature_idxes=None,
-                 qs=[25, 50, 75], **kwargs):
+                 qs='quartile', **kwargs):
         """
         Args:
             training_data (np.ndarray): Training data to measure training data statistics
             feature_names (list): List of feature names
             categorical_feature_idxes (list): List of idxes of features that are categorical
-            qs (list): Discretization bins
+            qs (str): Discretization resolution
 
         Assumptions:
             * Data only contains categorical and/or numerical data

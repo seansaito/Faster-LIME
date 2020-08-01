@@ -5,6 +5,9 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
 import multiprocessing
 
+from faster_lime.utils import dict_disc_to_bin
+
+
 
 def ridge_solve(tup):
     data_synthetic_onehot, model_pred, weights = tup
@@ -22,13 +25,13 @@ class NumpyEnsembleExplainer:
 
     def __init__(self, training_data, feature_names=None,
                  categorical_feature_idxes=None,
-                 qs=[25, 50, 75], **kwargs):
+                 qs='quartile', **kwargs):
         """
         Args:
             training_data (np.ndarray): Training data to measure training data statistics
             feature_names (list): List of feature names
             categorical_feature_idxes (list): List of idxes of features that are categorical
-            qs (list): Discretization bins
+            qs (str): Discretization resolution
 
         Assumptions:
             * Data only contains categorical and/or numerical data
@@ -72,7 +75,7 @@ class NumpyEnsembleExplainer:
             training_data_num = self.training_data[:, self.numerical_feature_idxes]
             self.sc = StandardScaler(with_mean=False)
             self.sc.fit(training_data_num)
-            self.qs = qs
+            self.qs = dict_disc_to_bin[qs]
             self.all_bins_num = np.percentile(training_data_num, self.qs, axis=0).T
 
         # Categorical feature statistics

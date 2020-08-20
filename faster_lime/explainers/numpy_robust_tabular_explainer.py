@@ -24,7 +24,7 @@ class NumpyRobustTabularExplainer:
 
     def __init__(self, training_data, ctgan_sampler=None, discriminator=None,
                  feature_names=None, categorical_feature_idxes=None,
-                 qs='decile', ctgan_epochs=100, ctgan_verbose=False, use_cat_for_ctgan=True,
+                 discretizer='decile', ctgan_epochs=100, ctgan_verbose=False, use_cat_for_ctgan=True,
                  ctgan_params={}, measure_distance='mix', nearest_neighbors=0.8, use_onehot=True,
                  discriminator_threshold=0.5, **kwargs):
         """
@@ -35,7 +35,7 @@ class NumpyRobustTabularExplainer:
             discriminator (Optional[Adversarial_Model]): Discriminator
             feature_names (list): List of feature names
             categorical_feature_idxes (list): List of idxes of features that are categorical
-            qs (str): Discretization resolution
+            discretizer (str): Discretization resolution
             ctgan_epochs (int): Number of epochs to train the CTGAN
             use_cat_for_ctgan (bool): Whether to use categorical features in training CTGAN
             ctgan_params (dict): Additional params for CTGAN
@@ -85,8 +85,8 @@ class NumpyRobustTabularExplainer:
             training_data_num = self.training_data[:, self.numerical_feature_idxes]
             self.sc = StandardScaler(with_mean=False)
             self.sc.fit(training_data_num)
-            self.qs = dict_disc_to_bin[qs]
-            self.all_bins_num = np.percentile(training_data_num, self.qs, axis=0).T
+            self.percentiles = dict_disc_to_bin[discretizer]
+            self.all_bins_num = np.percentile(training_data_num, self.percentiles, axis=0).T
 
         # Categorical feature statistics
         if self.categorical_features:
@@ -120,9 +120,9 @@ class NumpyRobustTabularExplainer:
     def kernel_fn(self, distances, kernel_width):
         return np.sqrt(np.exp(-(distances ** 2) / kernel_width ** 2))
 
-    def discretize(self, X, qs=[25, 50, 75], all_bins=None):
+    def discretize(self, X, percentiles=[25, 50, 75], all_bins=None):
         if all_bins is None:
-            all_bins = np.percentile(X, qs, axis=0).T
+            all_bins = np.percentile(X, percentiles, axis=0).T
         return (np.array([np.digitize(a, bins)
                           for (a, bins) in zip(X.T, all_bins)]).T, all_bins)
 
@@ -171,7 +171,7 @@ class NumpyRobustTabularExplainer:
             else:
                 data_num_synthetic = data_samples
             # Discretize
-            data_synthetic_num_disc, _ = self.discretize(data_num_synthetic, qs=self.qs,
+            data_synthetic_num_disc, _ = self.discretize(data_num_synthetic, percentiles=self.percentiles,
                                                          all_bins=self.all_bins_num)
             list_disc.append(data_synthetic_num_disc)
             list_orig.append(data_num_synthetic)

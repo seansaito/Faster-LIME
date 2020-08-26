@@ -1,104 +1,17 @@
-import numpy as np
-from scipy.spatial.distance import cdist
-from sklearn.linear_model import Ridge
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-
 import multiprocessing
 
-from faster_lime.utils import dict_disc_to_bin
+import numpy as np
+from scipy.spatial.distance import cdist
+from sklearn.preprocessing import OneHotEncoder
+
+from faster_lime.explainers.base_tabular_explainer import BaseTabularExplainer
+from faster_lime.utils import ridge_solve, kernel_fn, discretize
 
 
-
-def ridge_solve(tup):
-    data_synthetic_onehot, model_pred, weights = tup
-    solver = Ridge(alpha=1, fit_intercept=True)
-    solver.fit(data_synthetic_onehot,
-               model_pred,
-               sample_weight=weights.ravel())
-    # Get explanations
-    importance = solver.coef_[
-        data_synthetic_onehot[0].toarray().ravel() == 1].ravel()
-    return importance
-
-
-class NumpyEnsembleExplainer:
-
-    def __init__(self, training_data, feature_names=None,
-                 categorical_feature_idxes=None,
-                 discretizer='quartile', **kwargs):
-        """
-        Args:
-            training_data (np.ndarray): Training data to measure training data statistics
-            feature_names (list): List of feature names
-            categorical_feature_idxes (list): List of idxes of features that are categorical
-            discretizer (str): Discretization resolution
-
-        Assumptions:
-            * Data only contains categorical and/or numerical data
-            * Categorical data is already converted to ordinal labels (e.g. via scikit-learn's
-                OrdinalEncoder)
-
-        """
-        self.training_data = training_data
-        self.num_features = self.training_data.shape[1]
-
-        # Parse columns
-        if feature_names is not None:
-            # TODO input validation
-            self.feature_names = list(feature_names)
-        else:
-            self.feature_names = list(range(self.num_features))
-        self.categorical_feature_idxes = categorical_feature_idxes
-        if self.categorical_feature_idxes:
-            self.categorical_features = [self.feature_names[i] for i in
-                                         self.categorical_feature_idxes]
-            self.numerical_features = [f for f in self.feature_names if
-                                       f not in self.categorical_features]
-            self.numerical_feature_idxes = [idx for idx in range(self.num_features) if
-                                            idx not in self.categorical_feature_idxes]
-        else:
-            self.categorical_features = []
-            self.numerical_features = self.feature_names
-            self.numerical_feature_idxes = list(range(self.num_features))
-
-        # Some book-keeping: keep track of the original indices of each feature
-        self.dict_num_feature_to_idx = {feature: idx for (idx, feature) in
-                                        enumerate(self.numerical_features)}
-        self.dict_feature_to_idx = {feature: idx for (idx, feature) in
-                                    enumerate(self.feature_names)}
-        self.list_reorder = [self.dict_feature_to_idx[feature] for feature in
-                             self.numerical_features + self.categorical_features]
-
-        # Get training data statistics
-        # Numerical feature statistics
-        if self.numerical_features:
-            training_data_num = self.training_data[:, self.numerical_feature_idxes]
-            self.sc = StandardScaler(with_mean=False)
-            self.sc.fit(training_data_num)
-            self.percentiles = dict_disc_to_bin[discretizer]
-            self.all_bins_num = np.percentile(training_data_num, self.percentiles, axis=0).T
-
-        # Categorical feature statistics
-        if self.categorical_features:
-            training_data_cat = self.training_data[:, self.categorical_feature_idxes]
-            self.dict_categorical_hist = {
-                feature: np.bincount(training_data_cat[:, idx]) / self.training_data.shape[0] for
-                (idx, feature) in enumerate(self.categorical_features)
-            }
-
-        # Another mapping from feature to type
-        self.dict_feature_to_type = {
-            feature: 'categorical' if feature in self.categorical_features else 'numerical' for
-            feature in self.feature_names}
-
-    def kernel_fn(self, distances, kernel_width):
-        return np.sqrt(np.exp(-(distances ** 2) / kernel_width ** 2))
-
-    def discretize(self, X, percentiles=[25, 50, 75], all_bins=None):
-        if all_bins is None:
-            all_bins = np.percentile(X, percentiles, axis=0).T
-        return (np.array([np.digitize(a, bins)
-                          for (a, bins) in zip(X.T, all_bins)]).T, all_bins)
+class NumpyEnsembleExplainer(BaseTabularExplainer):
+    """
+    An ensembled tabular explainer
+    """
 
     def explain_instance(self, data_row, predict_fn,
                          num_estimators=1,
@@ -108,6 +21,22 @@ class NumpyEnsembleExplainer:
                          kernel_width=None,
                          workers=1,
                          **kwargs):
+        """
+        Explain a prediction on a given instance
+
+        Args:
+            data_row (np.ndarray): Data instance to explain
+            predict_fn (func): A function which provides predictions from the target model
+            num_estimators (int): Number of estimators to ensemble with
+            label (int): The class to explain
+            num_samples (int): Number of synthetic samples to generate
+            num_features (int): Number of top features to return
+            kernel_width (Optional[float]): Width of the Gaussian kernel when weighting synthetic samples
+            workers (int): Number of workers for multiprocessing
+
+        Returns:
+            (list) Tuples of feature and score, sorted by the score
+        """
         # Scale the data
         data_row = data_row.reshape((1, -1))
 
@@ -128,8 +57,8 @@ class NumpyEnsembleExplainer:
             # Convert back to original domain
             data_synthetic_num_original = self.sc.inverse_transform(data_synthetic_num)
             # Discretize
-            data_synthetic_num_disc, _ = self.discretize(data_synthetic_num_original, self.percentiles,
-                                                         self.all_bins_num)
+            data_synthetic_num_disc, _ = discretize(data_synthetic_num_original, self.percentiles,
+                                                    self.all_bins_num)
             list_disc.append(data_synthetic_num_disc)
             list_orig.append(data_synthetic_num_original)
 
@@ -167,7 +96,7 @@ class NumpyEnsembleExplainer:
         # Weight distances according to some kernel (e.g. Gaussian)
         if kernel_width is None:
             kernel_width = np.sqrt(data_row.shape[1]) * 0.75
-        weights = self.kernel_fn(distances, kernel_width=kernel_width).ravel()
+        weights = kernel_fn(distances, kernel_width=kernel_width).ravel()
 
         # Turn discretized data into onehot
         data_synthetic_onehot = OneHotEncoder().fit_transform(data_synthetic_disc)

@@ -5,7 +5,7 @@ from scipy.spatial.distance import cdist
 from sklearn.preprocessing import OneHotEncoder
 
 from faster_lime.explainers.base_tabular_explainer import BaseTabularExplainer
-from faster_lime.utils import ridge_solve, kernel_fn, discretize
+from faster_lime.utils import ridge_solve, kernel_fn, discretize, map_explanations
 
 
 class NumpyEnsembleExplainer(BaseTabularExplainer):
@@ -126,25 +126,9 @@ class NumpyEnsembleExplainer(BaseTabularExplainer):
                               key=lambda x: x[1], reverse=True)[:num_features]
 
         # Add '<', '>', '=' etc. to the explanations
-        def map_explanations(tup):
-            feature, score = tup
-            feature_idx = self.dict_feature_to_idx[feature]
-            feature_type = self.dict_feature_to_type[feature]
-            if feature_type == 'categorical':
-                exp = '{} = {}'.format(feature, data_row[0][feature_idx])
-            else:
-                num_bin = int(data_synthetic_disc[0][feature_idx])
-                bins = self.all_bins_num[self.dict_num_feature_to_idx[feature]]
-                if num_bin == 0:
-                    exp = '{} < {}'.format(feature, bins[0])
-                elif num_bin >= len(bins) - 1:
-                    exp = '{} > {}'.format(feature, bins[-1])
-                else:
-                    exp = '{} <= {} < {}'.format(bins[num_bin - 1], feature, bins[num_bin])
-
-            return exp, score
-
-        explanations = list(map(map_explanations, explanations))
+        explanations = [
+            map_explanations(exp, data_row, self.dict_feature_to_idx, self.dict_feature_to_type, data_synthetic_disc[0],
+                             self.all_bins_num, self.dict_num_feature_to_idx) for exp in explanations]
 
         return explanations
 
